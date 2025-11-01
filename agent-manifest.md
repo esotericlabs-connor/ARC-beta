@@ -1,4 +1,5 @@
 # AGENT MANIFEST TEMPLATE — ARC LOGIC AGENTS  
+# PLEASE READ ARC GUIDE.md AFTER THIS!!!!!
 *(Internal Intelligence & Correlation Layer)*
 
 This template defines how **ARC logic agents** operate within the **AETA/AIDA intelligence fabric**.  
