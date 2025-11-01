@@ -1,22 +1,36 @@
-version: "3.8"
+version: "3.9"
+
 services:
   arc-collector:
     build: .
-    image: exoterik/arc-collector:dev
-    ports:
-      - "8443:8443"
+    image: arc/collector:dev
+    restart: unless-stopped
     environment:
       - PUBLIC_BASE_URL=${PUBLIC_BASE_URL}
-      - ARC_MODE=${ARC_MODE}
-      - ARC_SECRET=${ARC_SECRET}
       - ARC_AES_KEY=${ARC_AES_KEY}
+      - ARC_DATA_DIR=${ARC_DATA_DIR:-/data}
       - MS_CLIENT_ID=${MS_CLIENT_ID}
       - MS_CLIENT_SECRET=${MS_CLIENT_SECRET}
-      - MS_TENANT_ID=${MS_TENANT_ID}
       - MS_SCOPES=${MS_SCOPES}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GOOGLE_SCOPES=${GOOGLE_SCOPES}
+      - GEOIP_DATABASE_PATH=${GEOIP_DATABASE_PATH}
+    ports:
+      - "8443:8443"
     volumes:
       - ./data:/data
       - ./certs:/certs:ro
+    command:
+      [
+        "uvicorn",
+        "src.web:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8443",
+        "--ssl-keyfile",
+        "/certs/key.pem",
+        "--ssl-certfile",
+        "/certs/cert.pem"
+      ]

@@ -1,0 +1,4 @@
+# Persistent encrypted store
+*.enc
+*.json
+!/.gitignore

@@ -5,3 +5,5 @@ authlib
 python-dotenv
 pydantic
 cryptography
+jinja2
+geoip2

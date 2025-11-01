@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ARC Personal Cloud Collector</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-sA+e2atHsk/2zLwZkCkQCkA0pfp1GyeLO7fLkRj4bQA="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="/static/css/dashboard.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <h1>ARC Personal Cloud Collector</h1>
+        <p class="subtitle">Aggregate personal Microsoft 365 and Google sign-in telemetry into ARC's adaptive trust model.</p>
+      </div>
+      <nav class="header-actions">
+        {% if providers.microsoft %}
+        <a class="btn btn-primary" href="/auth/microsoft">Connect Microsoft 365</a>
+        {% endif %}
+        {% if providers.google %}
+        <a class="btn btn-secondary" href="/auth/google">Connect Google Account</a>
+        {% endif %}
+      </nav>
+    </header>
+
+    <main>
+      <section class="summary-grid">
+        <article class="summary-card">
+          <p class="label">Total Events</p>
+          <p class="value" id="metric-total-events">{{ summary.total_events }}</p>
+        </article>
+        <article class="summary-card">
+          <p class="label">Risky Sign-ins</p>
+          <p class="value" id="metric-risky-events">{{ summary.risky_events }}</p>
+        </article>
+        <article class="summary-card">
+          <p class="label">Adaptive Trust Index</p>
+          <p class="value" id="metric-ati">{{ '%.1f'|format(summary.adaptive_trust_index) }}</p>
+        </article>
+        <article class="summary-card">
+          <p class="label">Connected Accounts</p>
+          <p class="value" id="metric-connected">{{ summary.connected_accounts }}</p>
+        </article>
+      </section>
+
+      <section class="accounts-panel">
+        <div class="panel-header">
+          <h2>Connected Accounts</h2>
+          <div class="panel-actions">
+            {% if providers.microsoft %}
+            <a class="btn btn-link" href="/auth/microsoft">Add Microsoft Account</a>
+            {% endif %}
+            {% if providers.google %}
+            <a class="btn btn-link" href="/auth/google">Add Google Account</a>
+            {% endif %}
+          </div>
+        </div>
+        <ul class="accounts-list" id="accounts-list">
+          {% for account in accounts %}
+          <li data-account-id="{{ account.id }}">
+            <div>
+              <p class="account-name">{{ account.display_name or account.email or account.id }}</p>
+              <p class="account-meta">{{ account.provider|capitalize }} • {% if account.mfa_enabled is sameas false %}MFA disabled{% elif account.mfa_enabled %}MFA enabled{% else %}MFA unknown{% endif %}</p>
+            </div>
+            <button class="btn btn-small" data-sync-account="{{ account.id }}">Sync now</button>
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="map-and-findings">
+        <div class="map-card">
+          <h2>Global Login Footprint</h2>
+          <div id="signin-map"></div>
+        </div>
+        <aside class="findings-card">
+          <h2>Security Findings</h2>
+          <ul id="security-findings">
+            {% for finding in summary.security_findings %}
+            <li>{{ finding }}</li>
+            {% else %}
+            <li class="empty">No findings yet. Connect an account to begin analysis.</li>
+            {% endfor %}
+          </ul>
+        </aside>
+      </section>
+
+      <section class="events-panel">
+        <div class="panel-header">
+          <h2>Recent Sign-in Events</h2>
+          <button class="btn btn-small" id="refresh-events">Refresh</button>
+        </div>
+        <div class="table-wrapper">
+          <table id="events-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Provider</th>
+                <th>User</th>
+                <th>Location</th>
+                <th>Risk</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="empty-row">
+                <td colspan="5">Waiting for events… connect an account or sync to populate data.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-o9N1j7kP6Hf3KZ1JrVN6M8GN28M5soNqd2R8i8JfEPk="
+      crossorigin=""
+    ></script>
+    <script>
+      window.__ARC_SUMMARY__ = {{ summary.dict() | tojson }};
+      window.__ARC_ACCOUNTS__ = {{ accounts_payload | tojson }};
+    </script>
+    <script src="/static/js/dashboard.js" defer></script>
+  </body>
+</html>

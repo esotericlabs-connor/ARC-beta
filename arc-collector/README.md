@@ -1,207 +1,134 @@
-# Codex Task: ARC collector to aggregate security events from Microsoft 365 and Google via a self-hosted HTTPS Docker service
+# ARC Personal Cloud Collector
 
-Goal
-----
-Build a small, self-hosted collector that connects *personal* Microsoft 365 and Google accounts to ARC’s current logic. It should:
-1) handle OAuth sign-in,
-2) pull available security/sign-in/audit events,
-3) normalize to ARC’s unified schema,
-4) expose a local HTTPS page + JSON API,
-5) run in Docker.
+A self-hosted FastAPI service that links personal Microsoft 365 and Google accounts to ARC’s adaptive trust pipeline. The
+collector handles OAuth sign-in, gathers available sign-in and risk telemetry, normalizes events into ARC’s schema, and serves a
+visual dashboard with JSON APIs. Everything runs inside Docker with encrypted, local-at-rest storage.
 
-Notes & constraints
--------------------
-- Microsoft: use Microsoft Graph. For best results, use an Entra ID tenant (even a “personal” dev tenant). Pure consumer MSA accounts have limited security endpoints.
-  • APIs: `/beta/security/alerts_v2`, `auditLogs/signIns`, `identityProtection/riskyUsers`, `identityProtection/riskyServicePrincipals`
-- Google: rich audit feeds require **Google Workspace** (admin). Personal @gmail.com accounts have limited security telemetry. If Workspace isn’t available, fall back to:
-  • Gmail security settings + OAuth2 token events (limited)
-  • Otherwise (Workspace): Admin SDK Reports API `activities.list` for apps `login`, `admin`, `token`, `drive`, `gcp`, and Cloud Logging (if using GCP).
-- Privacy: store only anonymized/hashed identifiers per ARC method.
 
-Directory layout (container)
-----------------------------
-/app
-  /src
-    arc_normalizer.py        # AETA/AIDA → unified event
-    ms_graph_client.py       # Microsoft calls
-    google_client.py         # Google calls
-    store.py                 # sqlite or jsonl storage, AES-at-rest optional
-    web.py                   # FastAPI app (OAuth, webhooks, viewer, API)
-  /static                    # very small viewer UI
-  requirements.txt
-  Dockerfile
-  docker-compose.yml
+## Features
 
-Environment variables
----------------------
-ARC_MODE=production
-ARC_SECRET=change_me                       # cookie/session signing
-ARC_AES_KEY=base64_32_bytes               # for local at-rest encryption (optional)
+- **Secure OAuth onboarding** for multiple personal Microsoft 365 and Google accounts.
+- **Normalized telemetry pipeline** that maps Microsoft Graph and Google Reports data to ARC’s unified event schema.
+- **Adaptive Trust analytics** including ATI scoring, risky sign-in detection, MFA posture, and OSINT correlation against the
+  community-driven M365 indicator set shipped with the image.
+- **Rich dashboard** with an interactive world map, risk highlights, connected account management, and live event tables.
+- **JSON APIs** (`/api/events`, `/api/accounts`, `/api/summary`) for downstream automation or integration tests.
+- **Encrypted persistence** using Fernet with the `ARC_AES_KEY`, stored under `/data/events.json.enc` inside the container.
 
-# Microsoft
+## Prerequisites
+
+- Python 3.11 (for local development) or Docker
+- Registered OAuth applications for:
+  - Microsoft (Entra ID “personal” tenant or developer tenant works best)
+  - Google (OAuth consent screen + credentials that allow the Admin Reports API, if available)
+- A 32-byte secret for `ARC_AES_KEY` (Base64 or arbitrary string – the service derives a Fernet key).
+- Optional: a MaxMind GeoLite2 database (`GEOIP_DATABASE_PATH`) for precise latitude/longitude lookups. Without it, the map falls
+  back to vendor-provided coordinates.
+
+## Environment variables
+
+Create a `.env` file next to the Docker Compose file or export the variables manually.
+
+```env
+# Core service
+ARC_AES_KEY=base64_or_passphrase
+PUBLIC_BASE_URL=https://collector.example.com    # Used for OAuth redirect URIs
+ARC_DATA_DIR=/data                               # Optional override of the encrypted store path
+
+# Microsoft OAuth
 MS_CLIENT_ID=
 MS_CLIENT_SECRET=
-MS_TENANT_ID=consumers_or_your_tenant     # "common", "organizations", GUID, or "consumers"
-MS_SCOPES="openid email offline_access https://graph.microsoft.com/.default"
+MS_SCOPES="User.Read offline_access AuditLog.Read.All SecurityEvents.Read.All IdentityRiskEvent.Read.All"
 
-# Google
+# Google OAuth
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
-GOOGLE_SCOPES="openid email profile https://www.googleapis.com/auth/admin.reports.audit.readonly https://www.googleapis.com/auth/cloud-platform.read-only"
-GOOGLE_WORKSPACE_CUSTOMER_ID=optional
+GOOGLE_SCOPES="openid email profile https://www.googleapis.com/auth/admin.reports.audit.readonly"
 
-SERVER_HOST=0.0.0.0
-SERVER_PORT=8443
-PUBLIC_BASE_URL=https://your.host.tld      # used in OAuth redirects
+# Optional GeoIP database
+GEOIP_DATABASE_PATH=/data/GeoLite2-City.mmdb
+```
 
-OAuth redirect URIs you must register
--------------------------------------
-https://your.host.tld/oauth/ms/callback
-https://your.host.tld/oauth/google/callback
+> **OAuth redirect URIs**
+> - `https://<public-host>/auth/microsoft/callback`
+> - `https://<public-host>/auth/google/callback`
 
-API outline
------------
-GET  /            → tiny HTML page with “Connect Microsoft” / “Connect Google” + last 50 events
-GET  /health      → 200 when ready
-GET  /api/v1/events?limit=100&source=ms|google
-POST /api/v1/pull/ms       → on-demand MS pull (requires Bearer admin token)
-POST /api/v1/pull/google   → on-demand Google pull
-GET  /oauth/ms/init        → starts MS auth code + PKCE
-GET  /oauth/ms/callback    → exchanges code → stores refresh token (encrypted)
-GET  /oauth/google/init
-GET  /oauth/google/callback
+## Running with Docker Compose
 
-Normalization (ARC Method)
---------------------------
-Unified event (stored and returned by /api):
-{
-  "id": "evt-uuid",
-  "source": "microsoft|google",
-  "domain": "AETA|AIDA",                     // email vs identity context
-  "timestamp": "2025-11-01T19:45:00Z",
-  "identity": {
-    "user_hash": "sha256(sid or email+salt)",
-    "device_id": "optional hash",
-    "asn": "ASxxxx",
-    "geo": "CC-REGION"
-  },
-  "signals": {
-    "auth_confidence": 0-100,
-    "geo_risk": 0-100,
-    "session_anomaly": true|false,
-    "message_heuristic": 0-100               // if email context applies
-  },
-  "raw": { "provider_type": "...", "...": "..." },   // trimmed vendor fields
-  "arc": {
-    "ati": 0-100,                              // Adaptive Trust Index (computed)
-    "node_reputation": 0.0-1.0,                // placeholder for future
-    "decision_id": "ARC-UUID"
-  }
-}
+```bash
+cd arc-collector
+cp .env.example .env  # create and edit if you maintain one
+mkdir -p data certs
+# place TLS certs in certs/cert.pem and certs/key.pem
 
-# --- Microsoft OAuth client ---
-oauth.register(
-  name="ms",
-  client_id=os.getenv("MS_CLIENT_ID"),
-  client_secret=os.getenv("MS_CLIENT_SECRET"),
-  server_metadata_url="https://login.microsoftonline.com/{tenant}/v2.0/.well-known/openid-configuration".format(
-      tenant=os.getenv("MS_TENANT_ID","consumers")),
-  client_kwargs={"scope": os.getenv("MS_SCOPES")}
-)
+docker compose up --build
+```
 
-# --- Google OAuth client ---
-oauth.register(
-  name="google",
-  client_id=os.getenv("GOOGLE_CLIENT_ID"),
-  client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
-  server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-  client_kwargs={"scope": os.getenv("GOOGLE_SCOPES")}
-)
+The service listens on `8443` with TLS enabled. Visit `https://localhost:8443/` (or your public host) to connect accounts and
+view telemetry.
 
-@app.get("/", response_class=HTMLResponse)
-async def home():
-    # render minimal page (links to /oauth/ms/init and /oauth/google/init) + last events
-    events = store.tail(50)
-    return HTMLResponse(f"<h1>ARC Collector</h1><a href='/oauth/ms/init'>Connect Microsoft</a> · <a href='/oauth/google/init'>Connect Google</a><pre>{json.dumps(events, indent=2)}</pre>")
+## API reference
 
-@app.get("/oauth/ms/init")
-async def ms_init(request: Request):
-    redirect_uri = os.getenv("PUBLIC_BASE_URL") + "/oauth/ms/callback"
-    return await oauth.ms.authorize_redirect(request, redirect_uri)
+| Endpoint                           | Description                                                   |
+| ---------------------------------- | ------------------------------------------------------------- |
+| `GET /`                            | Dashboard UI                                                  |
+| `GET /healthz`                    | Basic readiness probe                                         |
+| `GET /api/events`                 | Returns normalized events (`EventEnvelope`)                   |
+| `GET /api/accounts`               | Lists connected accounts (`AccountsEnvelope`)                 |
+| `GET /api/summary`                | Aggregated metrics, ATI score, OSINT matches, geo footprint   |
+| `POST /api/accounts/{id}/sync`    | Refreshes telemetry for a specific account and returns summary|
 
-@app.get("/oauth/ms/callback")
-async def ms_callback(request: Request):
-    token = await oauth.ms.authorize_access_token(request)
-    store.save_secret("ms_token", token)
-    return RedirectResponse("/")
+All API responses are JSON and rely on the models defined in `src/models.py`.
 
-@app.get("/oauth/google/init")
-async def g_init(request: Request):
-    redirect_uri = os.getenv("PUBLIC_BASE_URL") + "/oauth/google/callback"
-    return await oauth.google.authorize_redirect(request, redirect_uri, access_type="offline", prompt="consent")
+## Project layout
 
-@app.get("/oauth/google/callback")
-async def g_callback(request: Request):
-    token = await oauth.google.authorize_access_token(request)
-    store.save_secret("google_token", token)
-    return RedirectResponse("/")
+```
+arc-collector/
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+├── src/
+│   ├── config.py            # Settings loader (BaseSettings)
+│   ├── models.py            # Pydantic schemas
+│   ├── normalizer.py        # Provider → ARC schema normalization + ATI
+│   ├── osint.py             # Indicator loading + correlation helpers
+│   ├── providers/
+│   │   ├── google.py        # Google OAuth + telemetry collection
+│   │   └── microsoft.py     # Microsoft OAuth + telemetry collection
+│   ├── store.py             # Encrypted event + token persistence
+│   └── web.py               # FastAPI app + routes + dashboard wiring
+├── static/
+│   ├── css/dashboard.css    # Styling for the dashboard
+│   ├── js/dashboard.js      # Front-end logic + map rendering
+│   └── data/m365_community_indicators.json
+├── templates/
+│   └── dashboard.html       # Jinja2 template for the dashboard
+└── data/                    # Mounted volume for encrypted storage
+```
 
-@app.post("/api/v1/pull/ms")
-async def pull_ms():
-    token = store.load_secret("ms_token")
-    if not token: return JSONResponse({"error":"not_connected"}, status_code=400)
-    headers = {"Authorization": f"Bearer {token['access_token']}"}
-    async with httpx.AsyncClient(timeout=30) as client:
-        # sample: sign-ins + risky users (adjust per tenant capability)
-        r1 = await client.get("https://graph.microsoft.com/beta/auditLogs/signIns?$top=50", headers=headers)
-        r2 = await client.get("https://graph.microsoft.com/beta/identityProtection/riskyUsers?$top=50", headers=headers)
-    events = []
-    for item in r1.json().get("value", []):
-        ev = normalize_ms(item)                 # → unified schema
-        ev["arc"]["ati"] = compute_ati(ev)
-        store.append(ev); events.append(ev)
-    for item in r2.json().get("value", []):
-        ev = normalize_ms(item)
-        ev["arc"]["ati"] = compute_ati(ev)
-        store.append(ev); events.append(ev)
-    return {"ingested": len(events)}
+## Local development
 
-@app.post("/api/v1/pull/google")
-async def pull_google():
-    token = store.load_secret("google_token")
-    if not token: return JSONResponse({"error":"not_connected"}, status_code=400)
-    headers = {"Authorization": f"Bearer {token['access_token']}"}
-    async with httpx.AsyncClient(timeout=30) as client:
-        # Workspace Admin Reports API (requires Workspace)
-        # login activity
-        r = await client.get("https://admin.googleapis.com/admin/reports/v1/activity/users/all/applications/login?maxResults=50", headers=headers)
-    events = []
-    for item in r.json().get("items", []):
-        ev = normalize_google(item)
-        ev["arc"]["ati"] = compute_ati(ev)
-        store.append(ev); events.append(ev)
-    return {"ingested": len(events)}
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+export ARC_AES_KEY=dev_key_please_change
+uvicorn src.web:app --reload --port 8443 --ssl-keyfile certs/key.pem --ssl-certfile certs/cert.pem
+```
 
-@app.get("/api/v1/events")
-async def list_events(limit: int = 100, source: str | None = None):
-    return store.query(limit=limit, source=source)
+The development server hot-reloads on file changes. You can disable TLS for local testing by dropping the `--ssl-*` flags and
+changing the Docker command accordingly.
 
-HTTPS & certs
--------------
-- For local dev, generate a self-signed cert in ./certs (key.pem, cert.pem) and trust locally.
-- For public exposure, place this behind Caddy/Traefik and terminate TLS there.
+## Security posture
 
-What to hand-off to Codex now
------------------------------
-1) Implement the FastAPI app exactly as above (OAuth, pulls, unified schema, UI).
-2) Fill in `ms_graph_client.py` and `google_client.py` helper calls if you prefer separate modules.
-3) Complete normalizers (hashing, geo/asn lookups) using your existing ARC routines.
-4) Persist events to sqlite or JSONL via `store.py` (AES-GCM optional using ARC_AES_KEY).
-5) Ship Dockerfile + compose. Service must start with HTTPS on 8443.
-6) Add a `/cron` container or background task to refresh tokens and pull new events every N minutes.
+- Tokens are stored encrypted with Fernet (derived from `ARC_AES_KEY`).
+- Normalized events hash user identifiers before storage.
+- Dashboard displays security findings such as missing MFA, risky sign-ins, and OSINT matches.
+- The optional GeoIP database improves map accuracy without leaking data to third parties.
 
-Acceptance
-----------
-- User can click “Connect Microsoft” or “Connect Google”, authorize, and then see live events on `/`.
-- `/api/v1/events` returns normalized events with ARC’s `ati` computed.
-- Container runs with HTTPS. No raw emails or PII are stored; only hashed identifiers per ARC Method.
+## Extending
+
+- Add more OSINT sources by dropping additional JSON files into `static/data` and loading them in `web.py`.
+- Integrate new providers by adding modules to `src/providers` that expose `register_client`, `collect_events`, and
+  `bootstrap_account`.
+- Enhance analytics inside `src/normalizer.compute_ati` and `src/store.build_summary` to align with ARC core models.
