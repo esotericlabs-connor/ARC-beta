@@ -1,0 +1,26 @@
+{
+"agent_id": "<string>", # unique for a host/installation
+"version": "<string>", # agent version
+"timestamp": "YYYY-MM-DDTHH:MM:SSZ",
+"event_type": "<string>", # e.g., email_received, sandbox_result, heartbeat
+"email_meta": {
+"from": "<obfuscated>", # hashed or redacted
+"rcpt_to": "<obfuscated>", # hashed or redacted
+"source_ip": "<ip>",
+"spf": "pass|fail|neutral|none",
+"dkim": "pass|fail|neutral|none",
+"dmarc": "pass|fail|none",
+"pgp_signed": true|false
+},
+"analysis": {
+"score": <int 0-100>,
+"heuristics": ["heuristic_name1", "heuristic_name2"],
+"scanners": ["ip_reputation","attachment_scan","url_analysis"],
+"latency_ms": <int>
+},
+"sandbox": {
+"ran": true|false,
+"result": "safe|malicious|suspicious",
+"artifacts_hash": "<sha256>" # optional link to stored artifact in central store
+}
+}

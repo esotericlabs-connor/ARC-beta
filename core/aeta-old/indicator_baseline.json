@@ -1,0 +1,87 @@
+{
+  "reputable_isps": [
+    "microsoft",
+    "outlook",
+    "amazon",
+    "aws",
+    "google",
+    "alphabet",
+    "comcast",
+    "centurylink",
+    "lumen",
+    "verizon",
+    "icloud",
+    "apple"
+  ],
+  "suspicious_isps": [
+    "tor",
+    "vpn",
+    "proxy",
+    "anonym",
+    "bulletproof",
+    "hosting",
+    "colo"
+  ],
+  "trusted_hostnames": [
+    "mail.protection.outlook.com",
+    "outlook.com",
+    "exchange.microsoft.com",
+    "amazonses.com",
+    "google.com",
+    "googleusercontent.com",
+    "pphosted.com"
+  ],
+  "risky_hostnames": [
+    "dynamic",
+    "broadband",
+    "pool-",
+    "pppoe",
+    "dialup",
+    "dsl",
+    "cust-",
+    "rev-",
+    "static-ip",
+    "-res"
+  ],
+  "trusted_asn_prefixes": [
+    "AS8075",
+    "AS16509",
+    "AS15169",
+    "AS32934",
+    "AS14618"
+  ],
+  "suspicious_asn_keywords": [
+    "hosting",
+    "bulletproof",
+    "anonym",
+    "vpn",
+    "socks"
+  ],
+  "blacklisted_networks": [
+    "45.155.205.0/24",
+    "185.220.100.0/22",
+    "23.129.64.0/24"
+  ],
+  "spoofing_keywords": [
+    "invoice",
+    "payment",
+    "urgent",
+    "wire"
+  ],
+  "disposable_domains": [
+    "mailinator.com",
+    "guerrillamail.com",
+    "10minutemail.com"
+  ],
+  "display_name_pattern": "^([^\"\\s<>]+?)\\s*<(.+@.+)>$",
+  "suspicious_tlds": [
+    "zip",
+    "click",
+    "country",
+    "kim",
+    "men",
+    "work",
+    "gq",
+    "ml"
+  ]
+}
