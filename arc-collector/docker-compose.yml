@@ -1,0 +1,22 @@
+version: "3.8"
+services:
+  arc-collector:
+    build: .
+    image: exoterik/arc-collector:dev
+    ports:
+      - "8443:8443"
+    environment:
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL}
+      - ARC_MODE=${ARC_MODE}
+      - ARC_SECRET=${ARC_SECRET}
+      - ARC_AES_KEY=${ARC_AES_KEY}
+      - MS_CLIENT_ID=${MS_CLIENT_ID}
+      - MS_CLIENT_SECRET=${MS_CLIENT_SECRET}
+      - MS_TENANT_ID=${MS_TENANT_ID}
+      - MS_SCOPES=${MS_SCOPES}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_SCOPES=${GOOGLE_SCOPES}
+    volumes:
+      - ./data:/data
+      - ./certs:/certs:ro
