@@ -109,7 +109,12 @@ class NodeState:
 
     def average_risk(self) -> float:
         if not self.history:
-@@ -122,26 +119,27 @@ class ARCState:
+            return 0.0
+        return sum(self.history) / len(self.history)
+
+@dataclass
+class ARCState:
+    """Global coordinator state shared across ARC components."""
 
     weights: AdaptiveWeights = field(default_factory=AdaptiveWeights)
     nodes: Dict[str, NodeState] = field(default_factory=dict)
@@ -117,7 +122,11 @@ class NodeState:
 
     def get_node(self, node_id: str, framework: str) -> NodeState:
         if node_id not in self.nodes:
-            self.nodes[node_id] = NodeState(node_id=node_id, framework=framework, last_seen=datetime.utcnow())
+            self.nodes[node_id] = NodeState(
+                node_id=node_id,
+                framework=framework,
+                last_seen=datetime.utcnow(),
+            )
         return self.nodes[node_id]
 
     def record_risk(self, risk_score: float) -> None:

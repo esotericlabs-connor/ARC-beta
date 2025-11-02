@@ -52,7 +52,9 @@ ARC’s visual telemetry map links sender IPs, domains, ASNs, and message finger
 Analysts can pivot from one campaign or compromised address to see propagation chains across time and geography.
 
 ### 5. Quantum-Safe Readiness
-ARC’s cryptographic handshake layer supports hybrid post-quantum key exchange, making it future-resilient as quantum threats move from theory to practice.
+ARC’s cryptographic handshake layer now uses the `HybridPQCEncryptor` from `core.crypto`, combining Kyber-based key exchange, Dilithium signing, and AES-256-GCM transport protection. The module keeps negotiation payloads compact, derives session keys with HKDF-SHA3, and exposes JSON-ready helpers so agents can add hybrid post-quantum security without extra orchestration friction.
+
+> **Dependency note:** install `pqcrypto` alongside the existing `cryptography` package (see `requirements.txt`) to enable production-grade Kyber/Dilithium support. The module gracefully advertises if the provider is unavailable so test suites can inject deterministic providers without weakening runtime guarantees.
 
 ### 6. Full Transparency
 Every classification decision is logged and explainable.  
