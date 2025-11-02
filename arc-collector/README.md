@@ -7,10 +7,10 @@ visual dashboard with JSON APIs. Everything runs inside Docker with encrypted, l
 
 ## Features
 
-- **Secure OAuth onboarding** for multiple personal Microsoft 365 and Google accounts.
-- **Normalized telemetry pipeline** that maps Microsoft Graph and Google Reports data to ARC’s unified event schema.
-- **Adaptive Trust analytics** including ATI scoring, risky sign-in detection, MFA posture, and OSINT correlation against the
-  community-driven M365 indicator set shipped with the image.
+- **Secure OAuth onboarding** for personal Microsoft 365, Google, and Dropbox accounts.
+- **Normalized telemetry pipeline** that maps Microsoft Graph, Google Workspace Reports, and Dropbox team activity data to ARC’s unified event schema.
+- **Adaptive Trust analytics** including ATI scoring, risky sign-in detection, MFA posture, and realtime OSINT correlation pulled
+  from multiple open-source intelligence feeds (Abuse.ch Feodo/ThreatFox, Tor exit lists, and optional AbuseIPDB/OTX APIs).
 - **Rich dashboard** with an interactive world map, risk highlights, connected account management, and live event tables.
 - **JSON APIs** (`/api/events`, `/api/accounts`, `/api/summary`) for downstream automation or integration tests.
 - **Encrypted persistence** using Fernet with the `ARC_AES_KEY`, stored under `/data/events.json.enc` inside the container.
@@ -45,13 +45,39 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GOOGLE_SCOPES="openid email profile https://www.googleapis.com/auth/admin.reports.audit.readonly"
 
+# Dropbox OAuth (optional)
+DROPBOX_CLIENT_ID=
+DROPBOX_CLIENT_SECRET=
+DROPBOX_SCOPES="account_info.read team_data.member team_info.read events.read"
+
 # Optional GeoIP database
 GEOIP_DATABASE_PATH=/data/GeoLite2-City.mmdb
+
+# Realtime OSINT feeds
+OSINT_CACHE_TTL=900
+OSINT_FEODO_ENABLED=true
+OSINT_THREATFOX_ENABLED=true
+OSINT_TOR_ENABLED=true
+ABUSEIPDB_API_KEY=
+ABUSEIPDB_MIN_CONFIDENCE=90
+OTX_API_KEY=
+OTX_PAGES=2
 ```
 
 > **OAuth redirect URIs**
 > - `https://<public-host>/auth/microsoft/callback`
 > - `https://<public-host>/auth/google/callback`
+
+### OSINT Feeds
+
+The collector ingests open-source intelligence in realtime. By default it polls:
+
+- Abuse.ch **Feodo Tracker** command-and-control blocklist
+- Abuse.ch **ThreatFox** botnet infrastructure feed
+- The Tor Project public exit-node list
+
+Provide API keys for **AbuseIPDB** and **AlienVault OTX** with the environment variables above to enrich the feed roster. All
+indicators are cached locally (`OSINT_CACHE_TTL`) to avoid excessive upstream requests.
 
 ## Running with Docker Compose
 
@@ -94,13 +120,13 @@ arc-collector/
 │   ├── osint.py             # Indicator loading + correlation helpers
 │   ├── providers/
 │   │   ├── google.py        # Google OAuth + telemetry collection
-│   │   └── microsoft.py     # Microsoft OAuth + telemetry collection
+│   │   ├── microsoft.py     # Microsoft OAuth + telemetry collection
+│   │   └── dropbox.py       # Dropbox OAuth + telemetry collection
 │   ├── store.py             # Encrypted event + token persistence
 │   └── web.py               # FastAPI app + routes + dashboard wiring
 ├── static/
 │   ├── css/dashboard.css    # Styling for the dashboard
-│   ├── js/dashboard.js      # Front-end logic + map rendering
-│   └── data/m365_community_indicators.json
+│   └── js/dashboard.js      # Front-end logic + map rendering
 ├── templates/
 │   └── dashboard.html       # Jinja2 template for the dashboard
 └── data/                    # Mounted volume for encrypted storage
@@ -128,7 +154,7 @@ changing the Docker command accordingly.
 
 ## Extending
 
-- Add more OSINT sources by dropping additional JSON files into `static/data` and loading them in `web.py`.
+- Extend realtime OSINT by implementing new `OSINTSource` classes in `src/osint.py` and wiring them into `OSINTClient.from_settings`.
 - Integrate new providers by adding modules to `src/providers` that expose `register_client`, `collect_events`, and
   `bootstrap_account`.
 - Enhance analytics inside `src/normalizer.compute_ati` and `src/store.build_summary` to align with ARC core models.

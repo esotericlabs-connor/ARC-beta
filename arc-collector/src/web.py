@@ -15,8 +15,8 @@ from fastapi.templating import Jinja2Templates
 
 from .config import get_settings
 from .models import AccountsEnvelope, EventEnvelope, SummaryEnvelope
-from .osint import Indicator, correlate_events, load_indicators
-from .providers import google, microsoft
+from .osint import OSINTClient
+from .providers import dropbox, google, microsoft
 from .store import EventStore
 from .utils.geo import GeoResolver
 
@@ -33,16 +33,15 @@ if settings.microsoft_client_id and settings.microsoft_client_secret:
     microsoft.register_client(oauth, settings)
 if settings.google_client_id and settings.google_client_secret:
     google.register_client(oauth, settings)
+if settings.dropbox_client_id and settings.dropbox_client_secret:
+    dropbox.register_client(oauth, settings)
 
 static_dir = Path(__file__).resolve().parent.parent / "static"
 templates_dir = Path(__file__).resolve().parent.parent / "templates"
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 templates = Jinja2Templates(directory=str(templates_dir))
 
-indicators_path = static_dir / "data" / "m365_community_indicators.json"
-indicators: list[Indicator] = []
-if indicators_path.exists():
-    indicators = load_indicators(indicators_path)
+osint_client = OSINTClient.from_settings(settings)
 
 
 @app.on_event("shutdown")
@@ -63,8 +62,8 @@ def _build_redirect_uri(request: Request, provider: str) -> str:
     return redirect
 
 
-def _correlate_osint() -> list[str]:
-    return correlate_events(store.events_for_osint(), indicators)
+async def _correlate_osint() -> list[str]:
+    return await osint_client.correlate_events(store.events_for_osint())
 
 
 def _get_client(provider: str):
@@ -86,7 +85,8 @@ async def _ensure_token(provider: str, account_id: str, token: Dict) -> Dict:
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, store: EventStore = Depends(get_store)) -> HTMLResponse:
-    summary = store.build_summary(_correlate_osint())
+    osint_matches = await _correlate_osint()
+    summary = store.build_summary(osint_matches)
     accounts = store.list_accounts()
     return templates.TemplateResponse(
         "dashboard.html",
@@ -98,6 +98,7 @@ async def dashboard(request: Request, store: EventStore = Depends(get_store)) ->
             "providers": {
                 "microsoft": bool(settings.microsoft_client_id),
                 "google": bool(settings.google_client_id),
+                "dropbox": bool(settings.dropbox_client_id),
             },
         },
     )
@@ -120,6 +121,8 @@ async def auth_callback(provider: str, request: Request, store: EventStore = Dep
         account, events = await microsoft.bootstrap_account(token, geo_resolver)
     elif provider == "google":
         account, events = await google.bootstrap_account(token, geo_resolver)
+    elif provider == "dropbox":
+        account, events = await dropbox.bootstrap_account(token, geo_resolver)
     else:
         raise HTTPException(status_code=404, detail=f"Unsupported provider '{provider}'")
 
@@ -129,7 +132,8 @@ async def auth_callback(provider: str, request: Request, store: EventStore = Dep
 
     store.register_account(account, token)
     store.upsert_events(account.id, events)
-    store.build_summary(_correlate_osint())  # update persisted cache
+    osint_matches = await _correlate_osint()
+    store.build_summary(osint_matches)
     return RedirectResponse(url="/")
 
 
@@ -146,7 +150,7 @@ async def api_accounts(store: EventStore = Depends(get_store)) -> AccountsEnvelo
 
 @app.get("/api/summary", response_model=SummaryEnvelope)
 async def api_summary(store: EventStore = Depends(get_store)) -> SummaryEnvelope:
-    summary = store.build_summary(_correlate_osint())
+    summary = store.build_summary(await _correlate_osint())
     return SummaryEnvelope(summary=summary)
 
 
@@ -165,11 +169,13 @@ async def api_sync_account(account_id: str, store: EventStore = Depends(get_stor
         events = await microsoft.collect_events(token, account.id, geo_resolver)
     elif account.provider == "google":
         events = await google.collect_events(token, account.id, geo_resolver)
+    elif account.provider == "dropbox":
+        events = await dropbox.collect_events(token, account.id, geo_resolver)
     else:
         raise HTTPException(status_code=400, detail="Unsupported provider")
 
     store.upsert_events(account.id, events)
-    summary = store.build_summary(_correlate_osint())
+    summary = store.build_summary(await _correlate_osint())
     return SummaryEnvelope(summary=summary)
 
 

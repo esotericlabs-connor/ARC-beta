@@ -2,11 +2,38 @@
 
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import List, Optional
 
-from pydantic import BaseSettings, Field, validator
+from dotenv import load_dotenv
+from pydantic import Field, validator
+try:
+    from pydantic_settings import BaseSettings
+except ImportError:  # pragma: no cover - fallback for restricted environments
+    from pydantic import BaseModel
+
+    class BaseSettings(BaseModel):  # type: ignore[misc]
+        """Minimal fallback that reads environment variables directly."""
+
+        class Config:
+            arbitrary_types_allowed = True
+
+        def __init__(self, **values):
+            env_values = {}
+            for name, field in self.__class__.model_fields.items():
+                env_name = None
+                if field.json_schema_extra:
+                    env_name = field.json_schema_extra.get("env")
+                if not env_name:
+                    env_name = name.upper()
+                if env_name and name not in values and env_name in os.environ:
+                    env_values[name] = os.environ[env_name]
+            super().__init__(**env_values, **values)
+
+
+load_dotenv()
 
 
 class Settings(BaseSettings):
@@ -43,13 +70,36 @@ class Settings(BaseSettings):
         env="GOOGLE_SCOPES",
     )
 
+    dropbox_client_id: Optional[str] = Field(default=None, env="DROPBOX_CLIENT_ID")
+    dropbox_client_secret: Optional[str] = Field(default=None, env="DROPBOX_CLIENT_SECRET")
+    dropbox_scopes: List[str] = Field(
+        default_factory=lambda: [
+            "account_info.read",
+            "team_data.member",
+            "team_info.read",
+            "members.read",
+            "team_data.team_space",
+            "events.read",
+        ],
+        env="DROPBOX_SCOPES",
+    )
+
     geoip_database_path: Optional[Path] = Field(default=None, env="GEOIP_DATABASE_PATH")
+
+    osint_cache_ttl: int = Field(default=900, env="OSINT_CACHE_TTL")
+    osint_feodo_enabled: bool = Field(default=True, env="OSINT_FEODO_ENABLED")
+    osint_threatfox_enabled: bool = Field(default=True, env="OSINT_THREATFOX_ENABLED")
+    osint_tor_enabled: bool = Field(default=True, env="OSINT_TOR_ENABLED")
+    abuseipdb_api_key: Optional[str] = Field(default=None, env="ABUSEIPDB_API_KEY")
+    abuseipdb_min_confidence: int = Field(default=90, env="ABUSEIPDB_MIN_CONFIDENCE")
+    otx_api_key: Optional[str] = Field(default=None, env="OTX_API_KEY")
+    otx_pages: int = Field(default=2, env="OTX_PAGES")
 
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
 
-    @validator("microsoft_scopes", "google_scopes", pre=True)
+    @validator("microsoft_scopes", "google_scopes", "dropbox_scopes", pre=True)
     def _split_scopes(cls, value):  # type: ignore[override]
         if isinstance(value, str):
             separators = [",", " ", "\n"]
@@ -75,14 +125,3 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return Path(value).expanduser()
         if isinstance(value, Path):
-            return value.expanduser()
-        raise ValueError("geoip_database_path must be a filesystem path or empty")
-
-
-@lru_cache()
-def get_settings() -> Settings:
-    """Return the cached application settings."""
-
-    settings = Settings()
-    settings.data_directory.mkdir(parents=True, exist_ok=True)
-    return settings

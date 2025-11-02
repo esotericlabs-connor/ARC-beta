@@ -19,7 +19,7 @@
     <header class="app-header">
       <div>
         <h1>ARC Personal Cloud Collector</h1>
-        <p class="subtitle">Aggregate personal Microsoft 365 and Google sign-in telemetry into ARC's adaptive trust model.</p>
+        <p class="subtitle">Aggregate personal Microsoft 365, Google and Dropbox sign-in telemetry into ARC's adaptive trust model.</p>
       </div>
       <nav class="header-actions">
         {% if providers.microsoft %}
@@ -27,6 +27,9 @@
         {% endif %}
         {% if providers.google %}
         <a class="btn btn-secondary" href="/auth/google">Connect Google Account</a>
+        {% endif %}
+        {% if providers.dropbox %}
+        <a class="btn btn-secondary" href="/auth/dropbox">Connect Dropbox</a>
         {% endif %}
       </nav>
     </header>
@@ -60,6 +63,9 @@
             {% endif %}
             {% if providers.google %}
             <a class="btn btn-link" href="/auth/google">Add Google Account</a>
+            {% endif %}
+            {% if providers.dropbox %}
+            <a class="btn btn-link" href="/auth/dropbox">Add Dropbox Account</a>
             {% endif %}
           </div>
         </div>

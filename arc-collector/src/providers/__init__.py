@@ -1,5 +1,5 @@
 """Cloud provider integrations for the ARC collector."""
 
-from . import google, microsoft
+from . import dropbox, google, microsoft
 
-__all__ = ["google", "microsoft"]
+__all__ = ["google", "microsoft", "dropbox"]
