@@ -1,11 +1,22 @@
-# AGENT MANIFEST TEMPLATE — ARC LOGIC AGENTS  
-# PLEASE READ ARC GUIDE.md AFTER THIS!!!!!
+# ARC - Adaptive Response Core  
 *(Internal Intelligence & Correlation Layer)*
+This template defines the algortihm and architecture of ARC - Adaptive Response Core - the central intelligence engine used for SentryID (personal SOC platform) and SentryMX (Email security platform) to help indentify digital threats using sign-in events, geolocation, darkweb database matches, OSINT, heuristics and other metadata to privately monitor your digital assets. More products will be used under this same intelligence engine in the future. 
 
-This template defines how **ARC logic agents** operate within the **AETA/AIDA intelligence fabric**.  
-These agents don’t live at the edge like SentryID sensors — they exist *inside ARC* to perform cross-domain analysis, pattern correlation, and global model updates.  
+ARC is a zero-trust, machine learning, self-healing, self-auditing, comprehensive security framework for everyone. The first ARC-powered app will be SentryID, the world's first personal SOC platform.  
 
-ARC agents are responsible for synthesizing data from thousands of external telemetry points and turning it into actionable intelligence.
+If I had to describe this to someone who didn't understand code, ARC is the CIA/FBI, SentryID, SentryMX and the products powered by ARC are your CIA/FBI agents, they were trained/built with security and privacy in mind and to protect. CIA/FBI agents were also trained no "never talk secrets" if compromised, ARC powered apps/agents work the same way as well under those conditions. 
+
+ARC agents are responsible for synthesizing data from thousands of external telemetry points and turning it into actionable, private, obfuscated and easy to aggregate intelligence for the apps powered under ARC. The agents powered by ARC follow a security protocal or procedure called Adaptive Identity Analysis in SentryID or Adaptive Email Threat Analysis (AIDA or AETA depending on the product). The method is the same. SentryID will be our first product to use ARC, so we will call this AIDA throughout the build moving forward (we don't need to lable code around AIDA/AETA, just know this is the method agents connected to ARC uses for SentryID and SentryMX). 
+
+To describe ARC, all potential cyber threats are like a parabolic arch being drawn:
+
+Left endpoint of the arch is the initial point of entry of a compromise, this is where the ARC intelligence needs to monitor and correlate data carefully and quickly to make sure what they are seeing is either a true positive or false positive and makes the best decision based on that data. If it's a false positive, the line stops being drawn, so no parabolic arch, no potential threat. If more data seems related to an actual threat, the line continues going up, closer to the vertex, the top point of a parabolic arch.
+
+The vertex of a parabolic arch is the "ultimate damage" in a cyber threat. Ransomware, data extraction, etc. In other words, the damage has already been done and there is no going back. ARC and the agents/apps that are powered by ARC have a mission to avoid this vertex from ever happening. Notifications, instructions, furthur investigating to see what other accounts/data could be affected. This is the danger zone we want to avoid and the ARC-powered platforms will do whatever they can to notify the end user of this before it happens or, if they are aware, provide the necessary tools they need to correct this damage.  
+
+Right endpoint of the arch is, the end result of a cyber incident. Maybe the incident is still happening, maybe the attacker has persistence in someones online accounts (SentryID). ARC remains an secure intelligence powerhouse, making sure the user is notified of any other suspicious activity when it happens. 
+
+
 
 ---
 
@@ -210,7 +221,7 @@ Only derived signals and anonymized vectors are permitted.
 ---
 
 **Template Version:** 0.1  
-**Framework:** ARC (AETA/AIDA Unified)  
+**Framework:** ARC AETA/AIDA Unified)  
 **Maintained by:** Exoterik Labs LLC
 **Last Updated:** 2025-11-01
 
@@ -220,6 +231,8 @@ ARC/
 │
 ├── README.md
 ├── LICENSE
+├── MISSION_STATEMENT.md
+├── PRIVACY_POLICY.md
 ├── requirements.txt
 ├── .env.example
 │
