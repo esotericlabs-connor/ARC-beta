@@ -8,6 +8,10 @@ If I had to describe this to someone who didn't understand code, ARC is the CIA/
 
 ARC agents are responsible for synthesizing data from thousands of external telemetry points and turning it into actionable, private, obfuscated and easy to aggregate intelligence for the apps powered under ARC. The agents powered by ARC follow a security protocal or procedure called Adaptive Identity Analysis in SentryID or Adaptive Email Threat Analysis (AIDA or AETA depending on the product). The method is the same. SentryID will be our first product to use ARC, so we will call this AIDA throughout the build moving forward (we don't need to lable code around AIDA/AETA, just know this is the method agents connected to ARC uses for SentryID and SentryMX). 
 
+AIDA = The procedure SentryID follows, led by ARC 
+
+AETA = The procedure Sentry MX follows, led by ARC
+
 To describe ARC, all potential cyber threats are like a parabolic arch being drawn:
 
 Left endpoint of the arch is the initial point of entry of a compromise, this is where the ARC intelligence needs to monitor and correlate data carefully and quickly to make sure what they are seeing is either a true positive or false positive and makes the best decision based on that data. If it's a false positive, the line stops being drawn, so no parabolic arch, no potential threat. If more data seems related to an actual threat, the line continues going up, closer to the vertex, the top point of a parabolic arch.
@@ -155,12 +159,13 @@ learning_pipeline:
 
 ```yaml
 security:
+  zero_trust: true
   signature_validation: true
   signed_model_weights: true
   integrity_check_interval_hours: 4
   sandbox_execution: true
   audit_log_retention_days: 30
-```
+  ```
 
 ---
 
