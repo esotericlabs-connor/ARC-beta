@@ -54,7 +54,7 @@ class ARCEngine:
         bundle = self.heuristics.run(event)
         fusion_result = self.fusion.fuse(
             event,
-            email_signals=bundle.email_signals,
+            context_signals=bundle.context_signals,
             identity_signals=bundle.identity_signals,
             node_reputation=node_state.reputation,
         )

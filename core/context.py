@@ -107,9 +107,7 @@ class ContextCorrelator:
         session_id = identity.get("session_id") or event.metadata.get("session_id")
         if isinstance(session_id, str) and session_id:
             actors.append(f"session:{session_id}")
-        from_domain = event.email.get("from_domain")
-        if isinstance(from_domain, str) and from_domain:
-            actors.append(f"domain:{from_domain.lower()}")
+       
         return actors
 
     def _prune(self, queue: Deque[CorrelatedEvent], now: datetime) -> None:

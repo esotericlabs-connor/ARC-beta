@@ -12,7 +12,7 @@ from .state import Signal, TelemetryEvent
 class HeuristicBundle:
     """Grouped heuristic output for downstream fusion."""
 
-    email_signals: Sequence[Signal]
+    context_signals: Sequence[Signal]
     identity_signals: Sequence[Signal]
 
 
@@ -26,105 +26,62 @@ class HeuristicEngine:
     # Public API
     # ------------------------------------------------------------------
     def run(self, event: TelemetryEvent) -> HeuristicBundle:
-        email_signals = tuple(self._email_signals(event))
+        context_signals = tuple(self._context_signals(event))
         identity_signals = tuple(self._identity_signals(event))
-        return HeuristicBundle(email_signals=email_signals, identity_signals=identity_signals)
+        return HeuristicBundle(context_signals=context_signals, identity_signals=identity_signals)
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
-    def _email_signals(self, event: TelemetryEvent) -> Iterable[Signal]:
-        email = event.email
+    def _context_signals(self, event: TelemetryEvent) -> Iterable[Signal]:
         metrics = event.metrics
+        identity = event.identity
 
-        if not email and event.framework != "AETA":
-            return []
-
-        heuristic_score = _coerce_float(
-            email.get("heuristic_score"),
-            metrics.get("heuristic_score"),
-            default=45.0,
-        )
-        heuristic_score = max(0.0, min(100.0, heuristic_score))
-        yield Signal(
-            name="email.heuristic_model",
-            score=heuristic_score,
-            weight=0.65,
-            context={"source": "legacy_aeta" if "heuristic_score" in email else "arc_estimate"},
-        )
-
-        auth_context = self._authentication_context(email)
-        if auth_context:
-            failures = auth_context.get("failures", 0)
-            risk = min(100.0, 40.0 + failures * 15.0)
+        geo_risk = _coerce_float(metrics.get("geo_risk"), identity.get("geo_risk"), default=20.0)
+        if geo_risk is not None:
             yield Signal(
-                name="email.authentication",
-                score=risk,
+                name="context.geo_risk",
+                score=max(0.0, min(100.0, geo_risk * 15.0)),
                 weight=0.45,
-                context=auth_context,
+                context={"geo_risk": geo_risk},
             )
 
-        link_risk = _coerce_float(email.get("link_risk"), default=35.0)
-        attachment_risk = _coerce_float(email.get("attachment_risk"), default=35.0)
-        if link_risk:
+        auth_confidence = _coerce_float(metrics.get("auth_confidence"), identity.get("auth_confidence"), default=80.0)
+        if auth_confidence is not None:
+            auth_risk = max(0.0, min(100.0, 100.0 - auth_confidence))
             yield Signal(
-                name="email.links",
-                score=min(100.0, link_risk),
-                weight=0.35,
-                context={"link_risk": link_risk},
-            )
-        if attachment_risk:
-            weight = 0.4 if attachment_risk >= 50.0 else 0.25
-            yield Signal(
-                name="email.attachments",
-                score=min(100.0, attachment_risk),
-                weight=weight,
-                context={"attachment_risk": attachment_risk},
+                name="context.auth_confidence",
+                score=auth_risk,
+                weight=0.5,
+                context={"auth_confidence": auth_confidence},
             )
 
-        domain_age = _coerce_float(email.get("domain_age_days"))
-        if domain_age is not None:
-            freshness = max(0.0, min(1.0, (90.0 - domain_age) / 90.0))
+        session_anomaly = metrics.get("session_anomaly")
+        if session_anomaly is None:
+            session_anomaly = identity.get("session_anomaly")
+        if isinstance(session_anomaly, bool):
             yield Signal(
-                name="email.domain_freshness",
-                score=30.0 + freshness * 50.0,
-                weight=0.2,
-                context={"domain_age_days": domain_age},
+                name="context.session_anomaly",
+                score=75.0 if session_anomaly else 20.0,
+                weight=0.35 if session_anomaly else 0.15,
+                context={"session_anomaly": session_anomaly},
+            )
+
+        trust_index = _coerce_float(metrics.get("trust_delta"))
+        if trust_index is not None:
+            score = max(0.0, min(100.0, 50.0 - trust_index))
+            yield Signal(
+                name="context.trust_delta",
+                score=score,
+                weight=0.25,
+                context={"trust_delta": trust_index},
             )
 
     def _identity_signals(self, event: TelemetryEvent) -> Iterable[Signal]:
         identity = event.identity
-        metrics = event.metrics
 
         if not identity and event.framework != "AIDA":
             return []
-
-        geo_risk = _coerce_float(metrics.get("geo_risk"), identity.get("geo_risk"), default=20.0)
-        geo_signal = Signal(
-            name="identity.geo_risk",
-            score=max(0.0, min(100.0, geo_risk * 15.0)),
-            weight=0.4,
-            context={"geo_risk": geo_risk},
-        )
-        yield geo_signal
-
-        auth_confidence = _coerce_float(metrics.get("auth_confidence"), identity.get("auth_confidence"), default=80.0)
-        auth_risk = max(0.0, min(100.0, 100.0 - auth_confidence))
-        yield Signal(
-            name="identity.auth_confidence",
-            score=auth_risk,
-            weight=0.5,
-            context={"auth_confidence": auth_confidence},
-        )
-
-        session_anomaly = identity.get("session_anomaly") or metrics.get("session_anomaly")
-        if isinstance(session_anomaly, bool):
-            yield Signal(
-                name="identity.session_anomaly",
-                score=75.0 if session_anomaly else 25.0,
-                weight=0.35 if session_anomaly else 0.2,
-                context={"session_anomaly": session_anomaly},
-            )
 
         device_history = identity.get("device_history") or []
         if isinstance(device_history, Sequence) and device_history:
@@ -152,21 +109,6 @@ class HeuristicEngine:
                 weight=0.3,
                 context={"behavior_signature": behavior_signature},
             )
-
-    def _authentication_context(self, email: Mapping[str, object]) -> Mapping[str, int | str]:
-        results = []
-        failures = 0
-        for proto in ("spf_result", "dkim_result", "dmarc_result"):
-            result = email.get(proto)
-            if not isinstance(result, str):
-                continue
-            normalized = result.lower()
-            results.append((proto.split("_")[0], normalized))
-            if normalized in {"fail", "softfail", "permerror"}:
-                failures += 1
-        if not results:
-            return {}
-        return {"protocols": tuple(results), "failures": failures}
 
 
 def _coerce_float(*values: object, default: float | None = None) -> float | None:

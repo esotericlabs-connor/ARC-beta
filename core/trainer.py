@@ -44,14 +44,14 @@ class AdaptiveTrainer:
 
         weights = self._state.weights
         if verdict == "malicious":
-            weights.email_weight += adjustment * 0.6
-            weights.identity_weight += adjustment * 0.4
+            weights.context_weight += adjustment * 0.4
+            weights.identity_weight += adjustment * 0.6
         elif verdict == "trusted":
-            weights.email_weight -= adjustment * 0.4
-            weights.identity_weight -= adjustment * 0.6
+            weights.context_weight -= adjustment * 0.3
+            weights.identity_weight -= adjustment * 0.7
         else:  # review
-            weights.email_weight += adjustment * 0.3
-            weights.identity_weight += adjustment * 0.3
+            weights.context_weight += adjustment * 0.2
+            weights.identity_weight += adjustment * 0.4
 
         weights.normalize()
 

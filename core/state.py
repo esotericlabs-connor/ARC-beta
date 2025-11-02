@@ -30,7 +30,6 @@ class TelemetryEvent:
     node_id: str
     framework: str
     metrics: Mapping[str, float | int | bool]
-    email: Mapping[str, object]
     identity: Mapping[str, object]
     metadata: Mapping[str, object]
 
@@ -50,7 +49,6 @@ class TelemetryEvent:
         framework = str(payload.get("framework") or payload.get("source") or "unknown").upper()
 
         metrics = _ensure_mapping(payload.get("metrics"))
-        email = _ensure_mapping(payload.get("email"))
         identity = _ensure_mapping(payload.get("identity"))
         metadata = _ensure_mapping(payload.get("metadata"))
 
@@ -59,7 +57,6 @@ class TelemetryEvent:
             node_id=node_id,
             framework=framework,
             metrics=metrics,
-            email=email,
             identity=identity,
             metadata=metadata,
         )
@@ -80,13 +77,13 @@ def _ensure_mapping(value: object) -> Mapping[str, object]:
 class AdaptiveWeights:
     """Mutable weighting strategy shared across ARC components."""
 
-    email_weight: float = 0.55
-    identity_weight: float = 0.45
+    context_weight: float = 0.4
+    identity_weight: float = 0.6
     reputation_bias: float = 0.1
 
     def normalize(self) -> None:
-        total = max(self.email_weight + self.identity_weight, 1e-9)
-        self.email_weight /= total
+        total = max(self.context_weight + self.identity_weight, 1e-9)
+        self.context_weight /= total
         self.identity_weight /= total
 
 
@@ -112,13 +109,7 @@ class NodeState:
 
     def average_risk(self) -> float:
         if not self.history:
-            return 50.0
-        return sum(self.history) / len(self.history)
-
-
-@dataclass
-class ARCState:
-    """Global mutable state for the ARC engine."""
+@@ -122,26 +119,27 @@ class ARCState:
 
     weights: AdaptiveWeights = field(default_factory=AdaptiveWeights)
     nodes: Dict[str, NodeState] = field(default_factory=dict)

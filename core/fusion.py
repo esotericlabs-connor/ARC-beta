@@ -14,7 +14,7 @@ class FusionResult:
     risk_score: float
     ati_score: float
     verdict: str
-    email_risk: float
+    context_risk: float
     identity_risk: float
     signals: Sequence[Signal]
 
@@ -23,14 +23,14 @@ class FusionResult:
             "risk_score": self.risk_score,
             "ati_score": self.ati_score,
             "verdict": self.verdict,
-            "email_risk": self.email_risk,
+             "context_risk": self.context_risk,
             "identity_risk": self.identity_risk,
             "signals": [signal.__dict__ for signal in self.signals],
         }
 
 
 class AdaptiveFusion:
-    """Combines email and identity signals into the Adaptive Trust Index."""
+    """Combines contextual and identity signals into the Adaptive Trust Index."""
 
     def __init__(self, state: ARCState) -> None:
         self._state = state
@@ -39,19 +39,19 @@ class AdaptiveFusion:
         self,
         event: TelemetryEvent,
         *,
-        email_signals: Sequence[Signal],
+        context_signals: Sequence[Signal],
         identity_signals: Sequence[Signal],
         node_reputation: float,
     ) -> FusionResult:
         weights = self._state.weights
         weights.normalize()
 
-        email_risk = _aggregate(email_signals)
+        context_risk = _aggregate(context_signals)
         identity_risk = _aggregate(identity_signals)
 
-        email_factor, identity_factor = self._adaptive_factors(event)
+        context_factor, identity_factor = self._adaptive_factors(event)
         weighted_risk = (
-            email_risk * weights.email_weight * email_factor
+            context_risk * weights.context_weight * context_factor
             + identity_risk * weights.identity_weight * identity_factor
         )
 
@@ -65,22 +65,20 @@ class AdaptiveFusion:
 
         verdict = self._verdict_for(risk_score)
 
-        all_signals = tuple(email_signals) + tuple(identity_signals)
+        all_signals = tuple(context_signals) + tuple(identity_signals)
         return FusionResult(
             risk_score=risk_score,
             ati_score=ati_score,
             verdict=verdict,
-            email_risk=email_risk,
+            context_risk=context_risk,
             identity_risk=identity_risk,
             signals=all_signals,
         )
 
     def _adaptive_factors(self, event: TelemetryEvent) -> tuple[float, float]:
         framework = event.framework.upper()
-        if framework == "AETA":
-            return 1.15, 0.95
         if framework == "AIDA":
-            return 0.95, 1.1
+            return 0.9, 1.1
         return 1.0, 1.0
 
     def _verdict_for(self, risk_score: float) -> str:

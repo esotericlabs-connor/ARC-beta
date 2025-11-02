@@ -1,6 +1,11 @@
 from __future__ import annotations
-
 from copy import deepcopy
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from core.engine import ARCEngine
 
@@ -14,6 +19,7 @@ def build_payload(**overrides):
             "geo_risk": 3,
             "session_anomaly": True,
             "auth_confidence": 65,
+            "trust_delta": -5,
         },
         "identity": {
             "user_hash": "abc123",
@@ -23,14 +29,7 @@ def build_payload(**overrides):
                 {"device": "ios", "failures": 2},
                 {"device": "mac", "failures": 1},
             ],
-        },
-        "email": {
-            "from_domain": "example.com",
-            "dkim_result": "fail",
-            "spf_result": "pass",
-            "heuristic_score": 58,
-            "link_risk": 42,
-            "attachment_risk": 10,
+            "session_anomaly": True,
         },
         "metadata": {},
     }
@@ -44,6 +43,7 @@ def test_engine_process_generates_decision():
 
     assert 0.0 <= decision.fusion.risk_score <= 100.0
     assert decision.fusion.verdict in {"trusted", "review", "malicious"}
+    assert 0.0 <= decision.fusion.context_risk <= 100.0
     assert decision.reputation.node_id == "AIDA-0001"
     assert decision.correlation is None
 
@@ -74,4 +74,4 @@ def test_feedback_updates_weights():
     updated = engine.state.weights
     # We expect identity weight to shift slightly towards benign feedback
     assert abs(updated.identity_weight - initial_weights.identity_weight) > 0
-    assert round(updated.email_weight + updated.identity_weight, 5) == 1.0
+    assert round(updated.context_weight + updated.identity_weight, 5) == 1.0
