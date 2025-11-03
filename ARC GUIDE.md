@@ -1,8 +1,7 @@
 # ARC Method — Development Reference
 
 ## Overview
-The **ARC Method** defines how Exoterik Labs’ Adaptive Relay Core functions as the unified intelligence framework that connects and powers both **AETA** and **AIDA**.  
-ARC isn’t just a system — it’s a living method of trust determination.  
+The **ARC Method** defines how Exoterik Labs’ Adaptive Relay Core functions as the unified intelligence framework that connects and powers both **AETA** and **AIDA**. ARC isn’t just a system — it’s a living method of trust, ethics, privacy, security intention and determination.  
 
 **AETA (Adaptive Email Threat Analysis)** governs message-level authenticity, mailflow behavior, and network context.  
 **AIDA (Adaptive ID Analysis)** governs user identity, behavioral integrity, and authentication context.  
