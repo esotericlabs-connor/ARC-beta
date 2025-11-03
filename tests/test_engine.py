@@ -46,6 +46,7 @@ def test_engine_process_generates_decision():
     assert 0.0 <= decision.fusion.context_risk <= 100.0
     assert decision.reputation.node_id == "AIDA-0001"
     assert decision.correlation is None
+    assert decision.failsafe.action == "monitor"
 
     # Second event with same actor triggers correlation window
     follow_up = build_payload(timestamp="2025-01-01T00:05:00Z")
@@ -75,3 +76,42 @@ def test_feedback_updates_weights():
     # We expect identity weight to shift slightly towards benign feedback
     assert abs(updated.identity_weight - initial_weights.identity_weight) > 0
     assert round(updated.context_weight + updated.identity_weight, 5) == 1.0
+
+
+def test_failsafe_triggers_self_destruct_for_intrusion():
+    engine = ARCEngine()
+    payload = build_payload(
+        metrics={
+            "geo_risk": 7,
+            "session_anomaly": True,
+            "auth_confidence": 12,
+            "trust_delta": -35,
+            "intrusion_detected": True,
+            "ssh_bruteforce_count": 12,
+        },
+        identity={
+            "user_hash": "threat-actor",
+            "session_id": "malicious-session",
+            "behavior_signature": "HIST-9999",
+            "device_history": [{"device": "unknown", "failures": 9}],
+            "tamper_detected": True,
+        },
+        metadata={
+            "intrusion_type": "ssh_bruteforce",
+            "cluster_name": "cluster-alpha",
+            "protected_resources": [
+                {"id": "container-api-1", "type": "docker", "location": "gke-edge"},
+                {"id": "cluster-alpha", "type": "kubernetes-cluster", "location": "us-east1"},
+            ],
+        },
+    )
+
+    decision = engine.process(payload)
+
+    assert decision.failsafe.action == "self_destruct"
+    assert decision.failsafe.triggered is True
+    assert decision.failsafe.severity >= decision.fusion.risk_score
+    assert any(
+        resource.identifier == "container-api-1" for resource in decision.failsafe.resources
+    )
+    assert "ssh_bruteforce" in decision.failsafe.reason.lower()

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Mapping, Optional
 
 from .context import ContextCorrelator, CorrelationResult
+from .failsafe import FailsafeDirective, FailsafeManager
 from .fusion import AdaptiveFusion, FusionResult
 from .heuristics import HeuristicEngine
 from .reputation import NodeReputationTracker, ReputationResult
@@ -20,6 +21,7 @@ class ARCDecision:
     fusion: FusionResult
     reputation: ReputationResult
     correlation: Optional[CorrelationResult]
+    failsafe: FailsafeDirective
 
     def as_dict(self) -> dict[str, object]:
         payload = {
@@ -30,6 +32,7 @@ class ARCDecision:
             },
             "fusion": self.fusion.as_dict(),
             "reputation": self.reputation.as_dict(),
+            "failsafe": self.failsafe.as_dict(),
         }
         if self.correlation is not None:
             payload["correlation"] = self.correlation.as_dict()
@@ -46,6 +49,7 @@ class ARCEngine:
         self.reputation = NodeReputationTracker(self.state)
         self.context = ContextCorrelator()
         self.trainer = AdaptiveTrainer(self.state)
+        self.failsafe = FailsafeManager()
 
     def process(self, payload: Mapping[str, object]) -> ARCDecision:
         event = TelemetryEvent.from_payload(payload)
@@ -80,12 +84,17 @@ class ARCEngine:
             verdict=fusion_result.verdict,
         )
 
+        failsafe_directive = self.failsafe.evaluate(
+            event,
+            risk_score=fusion_result.risk_score,
+            verdict=fusion_result.verdict,
+        )
+
         return ARCDecision(
             event=event,
             fusion=fusion_result,
             reputation=reputation_result,
             correlation=correlation,
+            failsafe=failsafe_directive,
         )
-
-
 __all__ = ["ARCEngine", "ARCDecision"]
