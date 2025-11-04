@@ -509,6 +509,7 @@ agents:
     default_status: active
     reports_to: no one other than the global admin of ARC 
     zero_trust: true
+    runs_on: kubernettes
   
   - id: security_agent
     title: Security Agent
@@ -527,6 +528,7 @@ agents:
     default_status: active
     reports_to: master_agent (only) 
     zero_trust: true
+    runs_on: kubernettes
   
   - id: integration_agent
     title: Integration Agent
@@ -543,8 +545,9 @@ agents:
     health_states: [active/updated, pending_update, updating, degraded, disconnected]
     default_status: active
     reports_to: master_agent and security_agent (only)
-    can_perform_actions_by: single_use_ticket 
+    can_perform_actions_by: single_use_ticket
     zero_trust: true
+    runs_on: docker
 
   - id: health_agent
     title: Health Agent
@@ -560,9 +563,10 @@ agents:
       - Metric reporting to the Master Agent
     health_states: [active, warning, error, diagnosing, recovering]
     default_status: active
-    reports_to: master_agent and security_agent (only)
+    reports_to: master_agent, security_agent and scaling_agent (only)
     can_perform_actions_by: single_use_ticket
     zero_trust: true
+    runs_on: kubernettes
 
   - id: threat_intel_agent
     title: Threat Intelligence Agent
@@ -580,6 +584,7 @@ agents:
     reports_to: master_agent and security_agent (only)
     can_perform_actions_by: single_use_ticket
     zero_trust: true
+    runs_on: kubernettes
 
   - id: ml_agent
     title: Machine Learning Agent
@@ -597,6 +602,7 @@ agents:
     reports_to: master_agent and security_agent (only)
     can_perform_actions_by: single_use_ticket
     zero_trust: true
+    runs_on: kubernettes
 
   - id: anomaly_agent
     title: Anomaly Detection Agent
@@ -614,6 +620,7 @@ agents:
     reports_to: master_agent and security_agent (only)
     can_perform_actions_by: single_use_ticket
     zero_trust: true
+    runs_on: kubernettes
 
   - id: policy_agent
     title: Compliance & Audit Agent
@@ -631,6 +638,7 @@ agents:
     default_status: audit_mode
     reports_to: master_agent and security_agent (only)
     can_perform_actions_by: single_use_ticket
+    runs_on: kubernettes
 
   - id: feedback_agent
     title: User Feedback Agent
@@ -647,6 +655,7 @@ agents:
     default_status: feedback_pending
     reports_to: master_agent and security_agent (only)
     can_perform_actions_by: single_use_ticket
+    runs_on: kubernettes
 
   - id: scaling_agent
     title: Scaling Agent
@@ -665,8 +674,9 @@ agents:
       - Communicate scaling decisions to Master and Health agents
     health_states: [active, scaling, idle, degraded, offline]
     default_status: active
-    reports_to: master_agent and health_agent
+    reports_to: master_agent and health_agent (only)
     can_perform_actions_by: authorization_token
+    runs_on: kubernettes
 
   - id: logging_agent
     title: Logging Agent
@@ -685,6 +695,7 @@ agents:
     health_states: [active, idle, log_rotation, audit_mode, offline]
     default_status: active
     reports_to: master_agent and security_agent (only)
+    runs_on: kubernettes
     
   - id: monitoring_agent
     title: Monitoring Agent
@@ -703,6 +714,7 @@ agents:
     health_states: [active, passive, observing, degraded, offline]
     default_status: observing
     reports_to: master_agent and health_agent
+    runs_on: kubernettes
     
 
 statuses:
@@ -755,7 +767,7 @@ Absolute zero-trust model, end-to-end.
 **Template Version:** v0.0.1  
 **Framework:** ARC - AETA/AIDA Unified  
 **Maintained by:** Exoterik Labs LLC
-**Last Updated:** 2025-11-02
+**Last Updated:** 2025-11-03
 
 ## 11. Rough draft planned folder structure
 
