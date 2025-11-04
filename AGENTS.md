@@ -1,10 +1,10 @@
 # ARC - Adaptive Response Core  
 *(Internal Intelligence & Correlation Layer)*
-This template defines the algortihm and architecture of ARC - Adaptive Response Core - the central intelligence engine used for SentryID (personal SOC platform) and SentryMX (Email security platform) to help identify digital threats using a variety of secure metadata (sign-in events, geolocation, darkweb database matches, OSINT, heuristics and many more) to privately monitor your digital assets in zero-trust architecture. More products will be used under this same intelligence engine in the future. SentryMX and Sentry ID should be considered separate applications leveraging ARC and should NOT be related in anyway (unless future integrations follow that will combine both for SMBs/Enterprises who need it) 
+This template defines the algortihm and architecture of ARC - Adaptive Response Core - the stateless intelligence engine used for SentryID (personal SOC platform) and SentryMX (Email security platform) to help identify digital threats using a variety of secure metadata (sign-in events, geolocation, darkweb database matches, OSINT, heuristics and many more as ARC builds) to privately monitor your digital assets in zero-trust architecture. More products will be used under this same intelligence engine in the future. SentryMX and Sentry ID should be considered separate applications leveraging ARC and should NOT be related in anyway (unless future integrations follow that will combine both for SMBs/Enterprises who need it) 
 
 To detail more, ARC is a zero-trust, machine learning, self-healing, self-auditing, comprehensive security framework/engine for everyone. The first ARC-powered app will be SentryID, the world's first personal SOC platform taking API integrations from several cloud accounts and aggregating that data into a single user-friendly SIEM for real people. 
 
-If I had to describe this to someone who didn't understand code, ARC is the CIA/FBI, SentryID, SentryMX and the products powered by ARC are your CIA/FBI agents, they were trained/built with security and privacy in mind and to protect. CIA/FBI agents were also trained no "never talk secrets" if compromised, ARC powered apps/agents work the same way as well under those conditions. 
+If I had to describe this to someone who didn't understand code, ARC is the CIA/FBI. SentryID, SentryMX and the products powered by ARC are your CIA/FBI agents, they were trained/built with security and privacy in mind and to protect. CIA/FBI agents were also trained no "never talk secrets" if compromised, ARC powered apps/agents work the same way as well under those conditions. 
 
 ARC agents are responsible for synthesizing data from thousands of external telemetry points and turning it into actionable, private, obfuscated and easy to aggregate intelligence for the apps powered under ARC. The agents powered by ARC follow a security protocal or procedure called Adaptive Identity Analysis in SentryID or Adaptive Email Threat Analysis (AIDA or AETA depending on the product). The method is the same. SentryID will be our first product to use ARC, so we will call this AIDA throughout the build moving forward (we don't need to lable code around AIDA/AETA, just know this is the method agents connected to ARC uses for SentryID and SentryMX). Agents (lean secure docker containers) only handle 
 
@@ -12,11 +12,13 @@ AIDA = The procedure SentryID follows, led by ARC
 
 AETA = The procedure Sentry MX follows, led by ARC
 
+Same methods, just different names. Don't get them confused at all or include them in code. It's just what ARC and 
+
 To describe ARC, I like to think of a body of water (lake, pool, ocean):
 
-Our digital assets and their safety, solitude and freedom is a calm body of water. That body of water should remain calm. A few drops of water from the rain is fine, usual behavior, devices, locations, expected travel, MFA passes, etc. Calm winds, light rain, those are the expected/benign events. 
+Our digital assets and their safety, solitude and freedom is a calm body of water. That body of water should remain calm (the line of water is relatively straight and ebbs and flows calmly, no suprises). A few drops of water from the rain is fine, usual behavior, devices, locations, expected travel, MFA passes, etc. Calm winds, light rain, those are the expected/benign events. The line of water stays the same. 
 
-Real true positive cyber threats are the harsh winds and rainstorms that change the shape of the water. It "disrupts the calm". ARC will be designed and purpose built to analyze, predict and alert when potential "rainstorms" happen like this.
+Real true positive cyber threats are the harsh winds and rainstorms that change the shape of the water. It "disrupts the calm". ARC will be designed and purpose built to analyze, predict and alert when potential "rainstorms" happen like this. The "water line breaks" if it were. Thats the best way I can describe it. 
 
 ---
 
@@ -24,10 +26,6 @@ Real true positive cyber threats are the harsh winds and rainstorms that change 
 
 ```yaml
 agent_name: "CorrelationFusion"
-
-
-
-
 agent_id: "ARC-CORE-001"
 framework: "ARC"
 version: "0.0.1"
@@ -44,6 +42,46 @@ created: "2025-11-01"
 
 ```yaml
 capabilities:
+  - name: stateless_intelligence_engine
+  description: >
+    Operates as a stateless intelligence core, processing telemetry and decision
+    logic without retaining direct session memory. Each evaluation cycle is 
+    self-contained, ensuring that ARC’s logic is deterministic, reproducible, 
+    and isolated from prior states. This design enhances scalability, fault 
+    tolerance, and data privacy by preventing historical data dependency within 
+    the engine itself. Historical context and learning continuity are instead 
+    maintained through external agents (Machine Learning, Feedback, and 
+    Threat Intel) that provide dynamic state data to ARC when needed.
+  input: ["normalized_event_stream", "external_state_reference"]
+  output: "deterministic_decision_object"
+  mode: "core"
+  benefits:
+    - Enables horizontal scaling across nodes without session lock
+    - Eliminates state corruption and memory leakage risk
+    - Ensures reproducible, verifiable analytical outcomes
+    - Preserves user privacy through non-persistent processing
+
+- name: dynamic_scaling
+  description: >
+    Automatically adjusts ARC’s operational footprint in real time based on 
+    system load, agent demand, and available/necessary compute resources. The Scaling 
+    Agent continuously evaluates resource telemetry and determines which 
+    agents should be active, passive, or temporarily suspended. This ensures 
+    that ARC maintains optimal usability, modularity, performance, redundancy, and fault tolerance 
+    across distributed environments. Dynamic scaling allows for seamless 
+    horizontal expansion or contraction without service interruption, 
+    sustaining system stability under varying workloads. ARC is stateless, powerful, nimble
+    and extremely versatile. Dynamic scaling assists with that. 
+  input: ["agent_health_metrics", "system_load_telemetry"]
+  output: "scaling_directive_map"
+  mode: "infrastructure"
+  benefits:
+    - Enables real-time resource allocation and rebalancing
+    - Prevents overload through proactive scaling decisions
+    - Maintains high availability with two active scaling agents minimum
+    - Supports distributed, fault-tolerant orchestration
+    - Apps powered by ARC -only- run what they need
+
   - name: "telemetry_normalization"
     description: >
       Normalizes and merges telemetry from both SentryMX (AETA) and SentryID (AIDA) nodes
@@ -88,6 +126,83 @@ capabilities:
       turning individual anomalies into contextual incidents.
     output: "cross_domain_correlation_map"
     mode: "analytical"
+
+- name: threat_intelligence_enrichment
+  description: >
+    Enriches telemetry and correlated incidents with external and internal
+    threat intelligence data. Cross-references IOCs, domain reputation,
+    phishing patterns, and dark web indicators to provide contextual
+    enrichment for detections and incident scoring.
+  input: ["normalized_event_stream", "threat_intel_feeds"]
+  output: "enriched_threat_context"
+  mode: "analytical"
+  adaptive_sources:
+    - "OSINT: IOC, CVE, domain_reputation"
+    - "SentryMX/SentryID: heuristic_overlap, domain_similarity"
+
+- name: anomaly_detection
+  description: >
+    Detects statistical and behavioral anomalies across telemetry, reputation,
+    and trust datasets. Employs unsupervised learning to surface unknown or
+    emerging threat behaviors. Sends anomalies to the adaptive trust engine
+    for contextual validation.
+  input: ["normalized_event_stream", "node_reputation_score"]
+  output: "anomaly_alerts"
+  mode: "analytical"
+
+- name: policy_enforcement
+  description: >
+    Interprets and applies ARC global policy directives to control how
+    detections and automated responses are executed. Ensures alignment
+    between compliance, security, and automation logic.
+  input: ["incident_policy", "master_config"]
+  output: "policy_enforcement_result"
+  mode: "active"
+
+- name: data_integrity_verification
+  description: >
+    Validates the authenticity and integrity of inbound and outbound data streams.
+    Uses cryptographic hashing and signature verification to ensure ARC’s
+    telemetry and decision outputs have not been tampered with.
+  input: ["all_agent_streams"]
+  output: "verified_event_stream"
+  mode: "passive"
+
+- name: situational_awareness
+  description: >
+    Continuously evaluates ARC’s operational state, environment, and agent
+    relationships to identify systemic risks, communication delays, or degraded
+    nodes. Provides holistic awareness for orchestration and adaptive scaling.
+  input: ["agent_health_metrics", "system_telemetry"]
+  output: "environmental_state_map"
+  mode: "passive"
+
+- name: adaptive_response_orchestration
+  description: >
+    Determines appropriate response actions based on trust score, confidence
+    levels, and organizational policy. Orchestrates multi-agent containment,
+    alerting, or escalation workflows with contextual intelligence.
+  input: ["enriched_threat_context", "policy_enforcement_result"]
+  output: "coordinated_response_action"
+  mode: "active"
+
+- name: feedback_reinforcement
+  description: >
+    Integrates verified analyst or user feedback (false positives/negatives)
+    into the ARC learning pipeline. Updates trust weights and anomaly thresholds
+    dynamically to refine accuracy and reduce alert fatigue.
+  input: ["user_feedback", "validated_incidents"]
+  output: "reinforced_model_weights"
+  mode: "active"
+
+- name: quantum_safe_encryption
+  description: >
+    Applies post-quantum cryptographic standards for data at rest and in transit.
+    Ensures ARC remains future-proof against quantum decryption risks while
+    maintaining interoperability with classical cryptosystems.
+  input: ["sensitive_data_streams"]
+  output: "encrypted_data_packets"
+  mode: "secure"
 
 ---
 
@@ -265,16 +380,21 @@ learning_pipeline:
         "trigger": "ReportedFalsePositives",
         "value": ">=10_reports_24h"
     },
-    "user_false_positive": {
+    "user_false_positives": {
         "description": "Retrain when user flags a detection as false positive",
         "trigger": "UserFalsePositives",
         "value": "single_event"
     },
     "travel_notice": {
-        "description": "Retrain or adjust heuristics when user travel pattern changes or unusual login detected",
+        "description": "Retrain or adjust heuristics when user alerts they are traveling",
         "trigger": "TravelNotice",
-        "value": "geo_anomaly_detected"
+        "value": "travel_notice_received"
     },
+    "impossible_travel": {
+        "description": "Retrain or adjust heuristics when user travel pattern changes outside their state, country, geolocation or just unusual login detected",
+        "trigger": "ImpossibleTravel",
+        "value": "geo_anomaly_detected"
+        },
     "prediction_trust_low": {
         "description": "Retrain when model confidence (PredictionTrust) falls below threshold",
         "trigger": "PredictionTrust",
@@ -378,20 +498,23 @@ agents:
       Serves as the central intelligence hub of ARC.
       Aggregates data from all agents, performs logic evaluation,
       orchestrates responses, and maintains decision-making authority.
+      Generates secure, single use tickets for all other agents to perform tasks for least privelage.
+      1 ticket, 1 action, 1 privelage. All provided by the master.
     responsibilities:
       - Centralized logic and analytics
-      - Decision orchestration
+      - Decision orchestration and approval 
       - Data normalization and routing
       - Policy enforcement
     health_states: [active, degraded, initializing, offline]
     default_status: active
+    reports_to: no one other than the global admin of ARC 
     zero_trust: true
   
   - id: security_agent
     title: Security Agent
     type: Enforcement
     description: >
-      Executes internal security policies and ensures zero-trust compliance.
+      Executes internal security policies and ensures zero-trust compliance with compliance agent.
       Performs signature verification, encryption management, and access control auditing.
       Sets self-destruct container (with confirmed compromise, error or anomaly data)
       All actions under the authority of the master_agent.
@@ -402,7 +525,7 @@ agents:
       - Key rotation and encryption policy
     health_states: [active, restricted, audit_mode, disabled]
     default_status: active
-    reports_to: master_agent (only)
+    reports_to: master_agent (only) 
     zero_trust: true
   
   - id: integration_agent
@@ -417,9 +540,10 @@ agents:
       - Webhook management
       - Secure data transfer and token validation
       - Normalization of external telemetry
-    health_states: [active, pending_update, degraded, disconnected]
+    health_states: [active/updated, pending_update, updating, degraded, disconnected]
     default_status: active
     reports_to: master_agent and security_agent (only)
+    can_perform_actions_by: single_use_ticket 
     zero_trust: true
 
   - id: health_agent
@@ -434,9 +558,10 @@ agents:
       - Container health checks
       - Self-healing and restart triggers
       - Metric reporting to the Master Agent
-    health_states: [active, warning, error, recovering]
+    health_states: [active, warning, error, diagnosing, recovering]
     default_status: active
     reports_to: master_agent and security_agent (only)
+    can_perform_actions_by: single_use_ticket
     zero_trust: true
 
   - id: threat_intel_agent
@@ -450,9 +575,10 @@ agents:
       - Indicator extraction and scoring
       - Threat signature updates
       - IOC publication for global intelligence sync
-    health_states: [active, updating, idle, disconnected]
+    health_states: [active, updating, idle, searching, disconnected]
     default_status: active
     reports_to: master_agent and security_agent (only)
+    can_perform_actions_by: single_use_ticket
     zero_trust: true
 
   - id: ml_agent
@@ -466,9 +592,10 @@ agents:
       - Federated average aggregation
       - Retrain condition monitoring
       - Model version control
-    health_states: [training, idle, degraded, offline]
+    health_states: [training, retraining, idle, degraded, offline]
     default_status: idle
-    reports_to: master_agent and security_agent (only)\
+    reports_to: master_agent and security_agent (only)
+    can_perform_actions_by: single_use_ticket
     zero_trust: true
 
   - id: anomaly_agent
@@ -482,17 +609,19 @@ agents:
       - Behavior deviation scoring
       - Alert forwarding to Master Agent
       - Cross-agent correlation for context validation
-    health_states: [active, alerting, idle, degraded]
+    health_states: [active, alerting, investigating, idle, degraded]
     default_status: active
     reports_to: master_agent and security_agent (only)
+    can_perform_actions_by: single_use_ticket
     zero_trust: true
 
-  - id: compliance_agent
+  - id: policy_agent
     title: Compliance & Audit Agent
     type: Governance
     description: >
       Oversees adherence to legal, regulatory, and internal compliance frameworks.
       Maintains immutable audit logs and compliance readiness checks.
+      Maintains and enforces user based and defined policies 
     responsibilities:
       - Compliance scanning and certification mapping
       - Immutable audit trail logging
@@ -501,6 +630,7 @@ agents:
     health_states: [active, audit_mode, standby, disabled]
     default_status: audit_mode
     reports_to: master_agent and security_agent (only)
+    can_perform_actions_by: single_use_ticket
 
   - id: feedback_agent
     title: User Feedback Agent
@@ -516,6 +646,64 @@ agents:
     health_states: [active, idle, feedback_pending, offline]
     default_status: feedback_pending
     reports_to: master_agent and security_agent (only)
+    can_perform_actions_by: single_use_ticket
+
+  - id: scaling_agent
+    title: Scaling Agent
+    type: Infrastructure
+    description: >
+      Dynamically scales ARC agents for redundancy and performance optimization
+      by monitoring compute utilization, system load, and active resource capacity.
+      Ensures a minimum of two active scaling agents for continuous high availability.
+      Determines which agents should remain active, enter passive standby, or be
+      temporarily disabled based on system demand and operational health.
+    responsibilities:
+      - Monitor compute and resource usage across all ARC agents
+      - Automatically scale agent instances up or down
+      - Maintain redundancy with two active scaling agents minimum
+      - Adjust agent states between active, passive, or disabled
+      - Communicate scaling decisions to Master and Health agents
+    health_states: [active, scaling, idle, degraded, offline]
+    default_status: active
+    reports_to: master_agent and health_agent
+    can_perform_actions_by: authorization_token
+
+  - id: logging_agent
+    title: Logging Agent
+    type: Observability
+    description: >
+      Collects, encrypts, and securely stores all ARC agent logs. Operates in an
+      isolated enclave accessible only to the Master and Security agents. Maintains
+      integrity, confidentiality, and non-repudiation of audit trails while enforcing
+      strict access controls and retention policies.
+    responsibilities:
+      - Collect and timestamp logs from all agents
+      - Encrypt and store logs in secured volume
+      - Enforce zero-trust access policy for log retrieval
+      - Provide immutable audit trails for compliance
+      - Report tampering or unauthorized access attempts
+    health_states: [active, idle, log_rotation, audit_mode, offline]
+    default_status: active
+    reports_to: master_agent and security_agent (only)
+    
+  - id: monitoring_agent
+    title: Monitoring Agent
+    type: Oversight
+    description: >
+      Provides passive oversight of ARC’s entire ecosystem, including agents,
+      nodes, and infrastructure components. Tracks operational efficiency,
+      uptime, and overall security posture. Functions as a supervisory layer
+      ensuring all systems maintain compliance, responsiveness, and resource balance.
+    responsibilities:
+      - Passive monitoring of ARC performance and uptime
+      - Resource utilization tracking and optimization
+      - Security posture assessment and alert forwarding
+      - Identify efficiency bottlenecks and latency issues
+      - Provide periodic status reports to Master and Health agents
+    health_states: [active, passive, observing, degraded, offline]
+    default_status: observing
+    reports_to: master_agent and health_agent
+    
 
 statuses:
   - active: "Agent is operational and performing assigned tasks."
@@ -558,7 +746,7 @@ while True:
 ---
 
 ## 9. Compliance
-All ARC agents must remain **data-agnostic** — they handle telemetry, NEVER content.  
+All ARC is agents must remain **data-agnostic** — they handle telemetry, NEVER content.  
 No PII, credentials, or message payloads are processed directly.  
 Only derived signals and anonymized vectors are permitted.
 Absolute zero-trust model, end-to-end.
