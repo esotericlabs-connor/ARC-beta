@@ -64,6 +64,7 @@ class ARCEngine:
         )
 
         self.state.record_risk(fusion_result.risk_score)
+        self.state.record_trust(fusion_result.ati_score)
 
         reputation_result = self.reputation.update(
             event,
@@ -98,5 +99,5 @@ class ARCEngine:
             failsafe=failsafe_directive,
         )
     
-    
+
 __all__ = ["ARCEngine", "ARCDecision"]

@@ -85,6 +85,13 @@ class AdaptiveTrainer:
         )
         self.register_feedback(feedback)
         return feedback
+    def export_weights(self) -> dict[str, float]:
+        weights = self._state.weights
+        return {
+            "context_weight": round(weights.context_weight, 6),
+            "identity_weight": round(weights.identity_weight, 6),
+            "reputation_bias": round(weights.reputation_bias, 6),
+        }
 
 
 __all__ = ["AdaptiveTrainer", "TrainingFeedback"]

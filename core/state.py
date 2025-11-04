@@ -1,11 +1,18 @@
-"""Core state definitions for the Adaptive Respond Core (ARC)."""
 from __future__ import annotations
 
 from collections import deque
-from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from datetime import datetime
 from typing import Deque, Dict, Iterable, Mapping
 
+
+__all__ = [
+    "Signal",
+    "TelemetryEvent",
+    "AdaptiveWeights",
+    "NodeState",
+    "ARCState",
+]
 
 @dataclass
 class Signal:
@@ -61,6 +68,19 @@ class TelemetryEvent:
             metadata=metadata,
         )
 
+    def to_payload(self) -> Dict[str, object]:
+        """Serialize the telemetry event back into a normalized mapping."""
+
+        return {
+            "timestamp": self.timestamp.isoformat(),
+            "node_id": self.node_id,
+            "framework": self.framework,
+            "metrics": dict(self.metrics),
+            "identity": dict(self.identity),
+            "metadata": dict(self.metadata),
+        }
+
+
 
 def _ensure_mapping(value: object) -> Mapping[str, object]:
     if isinstance(value, Mapping):
@@ -86,6 +106,14 @@ class AdaptiveWeights:
         self.context_weight /= total
         self.identity_weight /= total
 
+    def copy(self) -> "AdaptiveWeights":
+        return AdaptiveWeights(
+            context_weight=self.context_weight,
+            identity_weight=self.identity_weight,
+            reputation_bias=self.reputation_bias,
+        )
+
+
 
 @dataclass
 class NodeState:
@@ -96,13 +124,28 @@ class NodeState:
     last_seen: datetime
     reputation: float = 0.5
     reliability: float = 0.5
+    data_fidelity: float = 1.0
+    uptime_hours: float = 0.0
+    total_events: int = 0
     anomaly_rate: float = 0.0
     history: Deque[float] = field(default_factory=lambda: deque(maxlen=100))
-
+    def record_observation(self, event_time: datetime, risk_score: float, verdict: str) -> None:
+        event_dt = event_time if event_time.tzinfo else event_time.replace(tzinfo=timezone.utc)
+        last_seen = self.last_seen if self.last_seen.tzinfo else self.last_seen.replace(tzinfo=timezone.utc)
+        delta = max(0.0, (event_dt - last_seen).total_seconds() / 3600.0)
+        if delta:
+            self.uptime_hours += delta
+        self.last_seen = event_dt
     def record_observation(self, risk_score: float, verdict: str) -> None:
         self.last_seen = datetime.utcnow()
         self.history.append(risk_score)
+        self.total_events += 1
         deviation = abs(risk_score - self.average_risk())
+        self.anomaly_rate = min(1.0, (self.anomaly_rate * 0.88) + (deviation / 100.0) * 0.12)
+        confidence = 1.0 if verdict == "malicious" else 0.75 if verdict == "review" else 0.55
+        self.reliability = max(0.0, min(1.0, (self.reliability * 0.84) + (confidence * 0.16)))
+        fidelity_penalty = min(0.6, deviation / 140.0)
+        self.data_fidelity = max(0.0, min(1.0, (self.data_fidelity * 0.9) + (1.0 - fidelity_penalty) * 0.1))
         self.anomaly_rate = min(1.0, (self.anomaly_rate * 0.9) + (deviation / 100.0) * 0.1)
         confidence = 1.0 if verdict == "malicious" else 0.75 if verdict == "review" else 0.5
         self.reliability = max(0.0, min(1.0, (self.reliability * 0.85) + (confidence * 0.15)))
@@ -111,6 +154,52 @@ class NodeState:
         if not self.history:
             return 0.0
         return sum(self.history) / len(self.history)
+    
+    def snapshot(self) -> Dict[str, object]:
+        return {
+            "node_id": self.node_id,
+            "framework": self.framework,
+            "last_seen": self.last_seen,
+            "reputation": self.reputation,
+            "reliability": self.reliability,
+            "anomaly_rate": self.anomaly_rate,
+            "data_fidelity": self.data_fidelity,
+            "uptime_hours": self.uptime_hours,
+            "total_events": self.total_events,
+            "history": tuple(self.history),
+        }
+
+    @classmethod
+    def from_snapshot(cls, snapshot: Mapping[str, object]) -> "NodeState":
+        history_values = snapshot.get("history")
+        history_deque: Deque[float]
+        if isinstance(history_values, Iterable):
+            history_deque = deque(float(value) for value in history_values)
+            history_deque = deque(history_deque, maxlen=100)
+        else:
+            history_deque = deque(maxlen=100)
+
+        last_seen = snapshot.get("last_seen")
+        if isinstance(last_seen, datetime):
+            timestamp = last_seen if last_seen.tzinfo else last_seen.replace(tzinfo=timezone.utc)
+        elif isinstance(last_seen, str):
+            timestamp = datetime.fromisoformat(last_seen.replace("Z", "+00:00"))
+        else:
+            timestamp = datetime.now(tz=timezone.utc)
+
+        return cls(
+            node_id=str(snapshot.get("node_id", "unknown")),
+            framework=str(snapshot.get("framework", "unknown")),
+            last_seen=timestamp,
+            reputation=float(snapshot.get("reputation", 0.5)),
+            reliability=float(snapshot.get("reliability", 0.5)),
+            anomaly_rate=float(snapshot.get("anomaly_rate", 0.0)),
+            data_fidelity=float(snapshot.get("data_fidelity", 1.0)),
+            uptime_hours=float(snapshot.get("uptime_hours", 0.0)),
+            total_events=int(snapshot.get("total_events", 0)),
+            history=history_deque,
+        )
+
 
 @dataclass
 class ARCState:
@@ -119,23 +208,36 @@ class ARCState:
     weights: AdaptiveWeights = field(default_factory=AdaptiveWeights)
     nodes: Dict[str, NodeState] = field(default_factory=dict)
     global_risk_history: Deque[float] = field(default_factory=lambda: deque(maxlen=500))
+    trust_index_history: Deque[float] = field(default_factory=lambda: deque(maxlen=500))
 
     def get_node(self, node_id: str, framework: str) -> NodeState:
         if node_id not in self.nodes:
             self.nodes[node_id] = NodeState(
                 node_id=node_id,
                 framework=framework,
-                last_seen=datetime.utcnow(),
+                last_seen=datetime.now(tz=timezone.utc),
             )
         return self.nodes[node_id]
 
     def record_risk(self, risk_score: float) -> None:
         self.global_risk_history.append(risk_score)
 
+    def record_trust(self, ati_score: float) -> None:
+        self.trust_index_history.append(ati_score)
+
     def average_global_risk(self) -> float:
         if not self.global_risk_history:
             return 50.0
         return sum(self.global_risk_history) / len(self.global_risk_history)
+    
+    def trust_trend(self) -> float:
+        if len(self.trust_index_history) < 2:
+            return 0.0
+        recent = list(self.trust_index_history)[-10:]
+        delta = recent[-1] - recent[0]
+        return delta / max(len(recent) - 1, 1)
+
+
 
 
 __all__ = [

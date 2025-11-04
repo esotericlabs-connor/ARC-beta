@@ -39,7 +39,7 @@ class NodeReputationTracker:
         verdict: str,
     ) -> ReputationResult:
         node_state = self._state.get_node(event.node_id, event.framework)
-        node_state.record_observation(risk_score, verdict)
+        node_state.record_observation(event.timestamp, risk_score, verdict)
 
         reputation = self._compute_reputation(node_state)
         node_state.reputation = reputation
