@@ -23,7 +23,7 @@ class FusionResult:
             "risk_score": self.risk_score,
             "ati_score": self.ati_score,
             "verdict": self.verdict,
-             "context_risk": self.context_risk,
+            "context_risk": self.context_risk,
             "identity_risk": self.identity_risk,
             "signals": [signal.__dict__ for signal in self.signals],
         }

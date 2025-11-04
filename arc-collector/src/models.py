@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class GeoContext(BaseModel):
@@ -44,8 +44,7 @@ class NormalizedEvent(BaseModel):
     risk_tags: List[str] = Field(default_factory=list)
     insights: Dict = Field(default_factory=dict)
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ConnectedAccount(BaseModel):
