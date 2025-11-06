@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import deque
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from datetime import datetime
 from typing import Deque, Dict, Iterable, Mapping
@@ -129,6 +130,7 @@ class NodeState:
     total_events: int = 0
     anomaly_rate: float = 0.0
     history: Deque[float] = field(default_factory=lambda: deque(maxlen=100))
+
     def record_observation(self, event_time: datetime, risk_score: float, verdict: str) -> None:
         event_dt = event_time if event_time.tzinfo else event_time.replace(tzinfo=timezone.utc)
         last_seen = self.last_seen if self.last_seen.tzinfo else self.last_seen.replace(tzinfo=timezone.utc)
@@ -136,19 +138,27 @@ class NodeState:
         if delta:
             self.uptime_hours += delta
         self.last_seen = event_dt
+        previous_average = self.average_risk()
     def record_observation(self, risk_score: float, verdict: str) -> None:
         self.last_seen = datetime.utcnow()
         self.history.append(risk_score)
         self.total_events += 1
         deviation = abs(risk_score - self.average_risk())
         self.anomaly_rate = min(1.0, (self.anomaly_rate * 0.88) + (deviation / 100.0) * 0.12)
-        confidence = 1.0 if verdict == "malicious" else 0.75 if verdict == "review" else 0.55
+        if verdict == "malicious":
+            confidence = 1.0
+        elif verdict == "review":
+            confidence = 0.75
+        else:
+            confidence = 0.55
         self.reliability = max(0.0, min(1.0, (self.reliability * 0.84) + (confidence * 0.16)))
+
         fidelity_penalty = min(0.6, deviation / 140.0)
-        self.data_fidelity = max(0.0, min(1.0, (self.data_fidelity * 0.9) + (1.0 - fidelity_penalty) * 0.1))
-        self.anomaly_rate = min(1.0, (self.anomaly_rate * 0.9) + (deviation / 100.0) * 0.1)
-        confidence = 1.0 if verdict == "malicious" else 0.75 if verdict == "review" else 0.5
-        self.reliability = max(0.0, min(1.0, (self.reliability * 0.85) + (confidence * 0.15)))
+
+        self.data_fidelity = max(
+            0.0,
+            min(1.0, (self.data_fidelity * 0.9) + (1.0 - fidelity_penalty) * 0.1),
+        )
 
     def average_risk(self) -> float:
         if not self.history:

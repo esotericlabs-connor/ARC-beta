@@ -13,6 +13,13 @@ from .crypto import (
     SignatureVerificationError,
 )
 from .engine import ARCEngine, ARCDecision
+from .learning import (
+    LearningConfiguration,
+    LearningPipelineConfig,
+    RetrainCondition,
+    RetrainParameters,
+    default_learning_configuration,
+)
 from .failsafe import FailsafeDirective, FailsafeManager, ProtectedResource
 
 __all__ = [
@@ -24,6 +31,8 @@ __all__ = [
     "EncryptedPacket",
     "HandshakeMessage",
     "HandshakeVerificationError",
+    "LearningConfiguration",
+    "LearningPipelineConfig",
     "HybridPQCEncryptor",
     "PQCryptoProvider",
     "PQCryptoUnavailable",
@@ -31,4 +40,7 @@ __all__ = [
     "PublicBundle",
     "SessionKeyError",
     "SignatureVerificationError",
+    "RetrainCondition",
+    "RetrainParameters",
+    "default_learning_configuration",
 ]
