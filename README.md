@@ -1,6 +1,10 @@
 # ARC: Adaptive Response Core
 
 ## Overview
+
+**---ARC IS A WORK IN PROGRESS AND NOT READY FOR RELEASE---**
+
+
 ARC (Adaptive Response Core) is the intelligence backbone of AETA/AIDA — our Adaptive Email Threat and Identity Analysis.  
 It acts as the unified orchestration and decision-making layer for every connected AETA-driven system, from localized sensors to global telemetry engines.  
 
